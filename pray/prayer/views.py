@@ -1,16 +1,17 @@
 from django.shortcuts import render
 from django.shortcuts import render,redirect
 from django.http import HttpResponse, Http404
-from .models import Prayer
+from .models import Prayer, Users
 from .forms import forms
 from django.template import loader
+import hashlib
 
 
 #Create your views here.
 
 
 #Login and Login Help Views
-def login():
+def login(request):
 	if request.method == 'GET':
 		form = forms.Login()
 		template = loader.get_template('form.html')
@@ -47,8 +48,92 @@ def login():
 			'errorP' : 'Invalid Protocol'
 		}
 	return HttpResponse(template.render(context,request))
-#def help():
 
+def valid(dbfield,dbval,**filters):
+	try:
+		if(dbfield=='username'):
+			s = dbval[0:4]
+			vals = Users.objects.filter(username__startswith=s).values()
+			for val in vals:
+				if(val['username']==dbval):
+					return True
+			return False
+		elif(dbfield=='password'):
+			s = hashlib.sha256(dbval).hexdigest()
+			vals = Users.objects.filter(password__startswith=s[0:5]).values()
+			for val in vals:
+				if(val['password']==dbval):
+					return True
+			return False
+		elif(dbfield=='answer'):
+			s = filters['username']
+			q = filters['question']
+			vals = Users.objects.filter(username__startswith=s[0:5]).values()
+			for val in vals:
+				if(val['answer']==dbval):
+					if(val['question']==q):
+						return True
+			return False
+			
+	except Exception:
+		#log(Exception)
+		print(Exception)
+		return False
+
+def help(request):
+	if request.method == 'GET':
+		form = forms.Help()
+		template = loader.get_template('form.html')
+		context = {
+			'action' : 'help'
+		}
+	elif request.method == 'POST':
+		form = forms.Help(request.POST)
+		if form.isvalid():
+			if(form.cleaned_data.get('username')):
+				username = form.cleaned_data.get('username')
+				if(valid('username',username):	
+					question = form.cleaned_data.get('question')
+					answer = form.cleaned_data.get('answer')
+					if(valid('answer',answer,question,username)
+						context = {
+							'username' : username,
+							'question' : question,
+							'answer' : answer,
+						}
+					#redirect with context
+				else:
+					template = loader.get_template('error.html')
+					context = {
+						'errorH' : 'Username Not Located'
+					}
+			elif(form.cleaned_data.get('email')):
+				email = form.cleaned_data.get('email')
+			if valid('username',username):
+				if valid('password',password):
+					form.save()
+				else:
+					template = loader.get_template('error.html')
+					context = {
+						'errorL' : 'Incorrect Password'
+					}
+			else:
+				template = loader.get_template('error.html')
+				context = {
+					'errorL' : 'Username Not Located'
+				}
+			
+		else:
+			template = loader.get_template('error.html')
+			context = {
+				'errorF' : '501p Invalid Form'
+			}
+	else:
+		template = loader.get_template('error.html')
+		context = {
+			'errorP' : 'Invalid Protocol'
+		}
+	return HttpResponse(template.render(context,request))	
 #def new():
 
 #def emailhelp():
