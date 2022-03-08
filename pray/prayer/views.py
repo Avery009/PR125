@@ -3,7 +3,7 @@ from django.http import HttpResponse, Http404
 from .models import Prayer
 from .forms import forms
 from django.template import loader
-from django.contrib.auth import logout, authenticate
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 import hashlib,datetime
 
@@ -26,7 +26,7 @@ def login(request):
 			u = form.cleaned_data.get('username')
 			p = form.cleaned_data.get('password')
 			user = authenticate(request, username=u, password=hashlib.sha256(p).hexdigest()
-			if user is not None:
+			if(user is not None):
 				login(request, user)
 				#request.session['canpray'] = True
 				request.session['prayUser'] = u
@@ -35,7 +35,7 @@ def login(request):
 				template = loader.get_template('form.html')
 				form = forms.Login()
 				context = {
-					'errorL' : True,
+					'errorU' : True,
 					'form' : form
 				}
 			
@@ -106,7 +106,7 @@ def help(request):
 						if(user['answer']==answer):
 							request.session['prayValidated'] = True
 							request.session['prayUsername'] = username
-							#redirect
+							#redirect to password help
 						else:
 							form = forms.Help()
 							template = loader.get_template('form.html')
@@ -140,7 +140,7 @@ def help(request):
 						if(user['answer']==answer):
 							request.session['prayValidated'] = True
 							request.session['prayEmail'] = user['email']
-							#redirect
+							#redirect to passwordHelp
 						else:
 							form = forms.Help()
 							template = loader.get_template('form.html')
@@ -187,12 +187,64 @@ def help(request):
 		}
 	return HttpResponse(template.render(context,request))
 
-#def new():
+def new(request):
+	if request.method == 'GET':
+		form = forms.NewUser()
+		template = loader.get_template('form.html')
+		context = {
+			'action' : 'new',
+			'form' : form
+		}
+	elif request.method == 'POST':
+		form = forms.NewUser(request.POST)
+		if form.isvalid():
+			u = request.POST['username']
+			p = request.POST['password']
+			if len(u) > 8:
+				if len(p) > 14:
+					#checki if username exists
+				else:
+					form = forms.NewUser()
+					template = loader.get_template('form.html')
+					context = {
+						'form' : form,
+						'errorP' : False
+					}
+			else:
+				form = forms.NewUser()
+				template = loader.get_template('form.html')
+				context = {
+					'form' : form,
+					'errorU' : False #False is still a value -- binary T or F with T indicating not located, F indicating too short
+				}
+		else:
+			form = forms.NewUser()
+			template = loader.get_template('form.html')
+			context = {
+				'form' : form,
+				'errorF' : True
+			}
+	else:
+		template = loader.get_template('error.html')
+		context = {
+			'errorP' : True,
+			'protocol' : str(request.method)
+		}
+	return HttpResponse(template.render(context,request))
 
-#def emailhelp():
+def passwordhelp(request):
+	#determine how to set the request method to check for GET or POST
+	if request.method == 'GET':
+		if request.session['prayEmail']:
+	
+		elif request.session['prayUser']:
 
-#def passwordhelp():
+		else:
+	
+	elif request.method == 'POST':
 
+	else:
+		
 
 
 
@@ -245,27 +297,22 @@ def prayerrequest(request):
 			}
 			form = forms.PrayerRequestForm(initial=vals)
 			form.save()
-			
-		if form.is_valid():
-			#prayer = form.save(commit=False)
-			#prayer.prayer_request_date = request.prayer_request_date
-			#prayer.prayer_answer_date = request.prayer_answer_date
-			#prayer.prayer_description = request.prayer_description
-			#prayer.prayer_recipients = request.prayer_recipients
-			#prayer.prayer_recipients_email = request.prayer_recipients_email
-			#prayer.prayer_categories = request.prayer_categories
-			#prayer.prayer_answered = request.prayer_answered
-			#prayer.prayer_updates = request.prayer_updates
-			#prayer.prayer_image = request.prayer_image
-			#prayer.prayer_answered_image = request.prayer_answered_image
-			form.save()
 			return redirect('/success')
 		else:
-			context = {
-				'error' : '501pri'
+			form = forms.PrayerRequest()
+			context = {		
+				'errorF' : True,
+				'form' : form
 			}
-			template = loader.get_template('error.html')
+			template = loader.get_template('form.html')
 			return HttpResponse(template.render(context,request))
+	else:
+		template = loader.get_template('error.html')
+		context = {
+			'errorP' : True,
+			'protocol' : str(request.method)
+		}
+	return HttpResponse(template.render(context,request))
 
 def prayeredit(request,prayer_id):
 	if not request.user.is_authenticated:
@@ -277,23 +324,19 @@ def prayeredit(request,prayer_id):
 		return HttpResponse(template.render(context,request))
 	elif request.method == 'GET':
 		prayer = Prayer.objects.get(prayer_id=prayer_id)
-		#form = forms.PrayerRequestEditForm()
 		#PrayerFormSet = formset_factory(Prayer.objects.get(prayer_id=prayer_id),fields=('prayer_description','prayer_recipients','prayer_recipients_email','prayer_updates'))
-		PrayerFormSet = formset_factory(forms.PrayerRequestEditForm)	
-		formset = PrayerFormSet(initial=[
-			{
+		vals = {
 				'prayer_description':prayer.prayer_description,
 				'prayer_recipients':prayer.prayer_recipients,
 				'prayer_recipients_email':prayer.prayer_recipients_email,
 				'prayer_updates':prayer.prayer_updates
-			}	
-		])
-		context = {
-			'form' : formset,
-			'prayer' : prayer,
 		}
-		template = loader.get_template('editrequestform.html')
-		print(prayer.prayer_description)
+		form = forms.PrayerRequestEditForm(initial=vals)	
+		context = {
+			'action' : edit,
+			'form' : form
+		}
+		template = loader.get_template('form.html')
 		return HttpResponse(template.render(context,request))
 	elif request.method == 'POST':
 		#prayer_request_date = request.POST['prayer_request_date']
