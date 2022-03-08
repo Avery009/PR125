@@ -25,8 +25,8 @@ def login(request):
 		if form.isvalid():
 			u = form.cleaned_data.get('username')
 			p = form.cleaned_data.get('password')
-			user = authenticate(request, username=u, password=hashlib.sha256(p).hexdigest()
-			if(user is not None):
+			user = authenticate(request, username=u, password=hashlib.sha256(p).hexdigest())
+			if user is not None:
 				login(request, user)
 				#request.session['canpray'] = True
 				request.session['prayUser'] = u
@@ -43,7 +43,8 @@ def login(request):
 			form = forms.Login()
 			template = loader.get_template('form.html')
 			context = {
-				'errorF' : True
+				'errorF' : True,
+				'form' : form
 			}
 	else:
 		template = loader.get_template('error.html')
@@ -96,17 +97,17 @@ def help(request):
 		form = forms.Help(request.POST)
 		helpChoice = form.cleaned_data.get('helpChoice')
 		if form.isvalid():
-			if helpChoice[0] == 'u':
+			if helpChoice[0] == 'u': #helpChoice should be either username or email based on a toggle or radio button group selection
 				u = form.cleaned_data.get('username')
 				user = User.objects.get(username=u).values()
 				if(user is not None):	
 					question = form.cleaned_data.get('question')
 					answer = form.cleaned_data.get('answer')
-					if(user['question']==question):
+					if(user['question']==question): #check to see if this is a valid dict reference and that there is only one user object returned in queryset
 						if(user['answer']==answer):
-							request.session['prayValidated'] = True
+							request.session['prayValidated'] = True #validate in DB upon success during testing
 							request.session['prayUsername'] = username
-							#redirect to password help
+							return redirect('/password') #this should go to the PWhelp page where session vars can be checked
 						else:
 							form = forms.Help()
 							template = loader.get_template('form.html')
@@ -137,10 +138,10 @@ def help(request):
 					question = form.cleaned_data.get('question')
 					answer = form.cleaned_data.get('answer')
 					if(user['question']==question):
-						if(user['answer']==answer):
+						if(user['answer']==answer): #this may need to be a try..except depending on testing results
 							request.session['prayValidated'] = True
 							request.session['prayEmail'] = user['email']
-							#redirect to passwordHelp
+							return redirect('/password')
 						else:
 							form = forms.Help()
 							template = loader.get_template('form.html')
@@ -200,15 +201,26 @@ def new(request):
 		if form.isvalid():
 			u = request.POST['username']
 			p = request.POST['password']
-			if len(u) > 8:
-				if len(p) > 14:
-					#checki if username exists
+			if len(u) > 8: #username needs to be at least 8 characters
+				if len(p) > 14: #password needs to be at least 14 characters -- potential link to 1Password -- potential ask for starting with two characters to mitigate dictionary attacks
+					user = Users.objects.get.filter(username=u).values()
+					if user is None: #this would mean a value is not already located in the DB for username which should be a PK
+						#createUser
+					else:
+						form = forms.NewUser()
+						template = loader.get_template('form.html')
+						context = {
+							'form' : form,
+							'errorU' : True, #recycling binary flag to cut down on data transmitted and improve latency
+							'errorL' : False #adding additional user located flag to account for this type of error
+						}
+						
 				else:
 					form = forms.NewUser()
 					template = loader.get_template('form.html')
 					context = {
 						'form' : form,
-						'errorP' : False
+						'errorP' : False #error password indicates password is too short
 					}
 			else:
 				form = forms.NewUser()
@@ -222,12 +234,12 @@ def new(request):
 			template = loader.get_template('form.html')
 			context = {
 				'form' : form,
-				'errorF' : True
+				'errorF' : True #error form validation 
 			}
 	else:
 		template = loader.get_template('error.html')
 		context = {
-			'errorP' : True,
+			'errorP' : True, #error protocol
 			'protocol' : str(request.method)
 		}
 	return HttpResponse(template.render(context,request))
@@ -235,15 +247,64 @@ def new(request):
 def passwordhelp(request):
 	#determine how to set the request method to check for GET or POST
 	if request.method == 'GET':
-		if request.session['prayEmail']:
-	
-		elif request.session['prayUser']:
-
-		else:
-	
+		if request.session['prayEmail']: #indicates prior email validated choice
+			val = {'email':str(request.session['prayEmail'])}
+			form = forms.ChangePassword(initial=val) #validate that this will work with only one field update given necessity of other password fields 
+			template = loader.get_template('form.html')
+			context = {
+				'form' : form,
+			}
+		elif request.session['prayUser']: #indicates prior username validate choice
+			val = {'username':str(request.session['prayUser'])}
+			form = forms.ChangePassword(initial=val) #validate that this will work with only one field update given necessity of other password fields 
+			template = loader.get_template('form.html')
+			context = {
+				'form' : form,
+			}
+		else: #indicates going to this URL with no prior choice
+			template = loader.get_template('error.html')
+			context = {
+				'errorP': False, #Recycling protocol error flag -- may need to modify
+			}
 	elif request.method == 'POST':
-
+		if request.session['prayEmail']: #indicates prior email validated choice -- again, check if this needs a try catch in testing
+			e = request.session['prayEmail']
+			form = forms.ChangePassword(request.POST)
+			try:
+				newpassword = form.cleaned_data.get('newpassword')
+				if(form.cleaned_data.get('oldpassword')==form.cleaned_data.get('newpassword')):
+					u = User.objects.get(email__exact=e)
+					u.set_password(newpassword)
+					u.save()
+					form = forms.Login()
+					template = loader.get_template('form.html')
+					context = {
+						'form' : form,
+						'new' : True #new user flag
+					}
+			template = loader.get_template('form.html')
+			context = {
+				'form' : form,
+			}
+		elif request.session['prayUser']: #indicates prior username validate choice
+			val = {'username':str(request.session['prayUser'])}
+			form = forms.ChangePassword(initial=val) #validate that this will work with only one field update given necessity of other password fields 
+			template = loader.get_template('form.html')
+			context = {
+				'form' : form,
+			}
+		else: #indicates going to this URL with no prior choice
+			template = loader.get_template('error.html')
+			context = {
+				'errorP': False, #Recycling protocol error flag -- may need to modify
+			}
 	else:
+		template = loader.get_template('error.html')
+		context = {
+			'errorP': True,
+			'protocol': str(request.method)
+		}
+	return HttpResponse(template.render(context,request))
 		
 
 
