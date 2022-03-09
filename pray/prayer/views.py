@@ -1,9 +1,9 @@
 from django.shortcuts import render,redirect
 from django.http import HttpResponse, Http404
-#from .models import Prayer
-#from .forms import forms
+from .models import Prayer
+from .forms import forms
 from django.template import loader
-import datetime
+from datetime import datetime
 
 
 
@@ -16,7 +16,7 @@ def prayerrequests(request):
 	}
 	return HttpResponse(template.render(context,request))
 
-def prayerrequest(request,prayer_id):
+def prayerrequest(request):
 	if request.method == 'GET':
 		form = forms.PrayerRequest()
 		context = {
@@ -26,7 +26,7 @@ def prayerrequest(request,prayer_id):
 		template = loader.get_template('requestform.html')
 	elif request.method == 'POST':
 		form = forms.PrayerRequest(request.POST)
-		if form.isvalid():
+		if form.is_valid():
 			prayer_request_date = datetime.now()
 			prayer_title = request.POST['prayer_title']
 			prayer_description = request.POST['prayer_description']
@@ -40,10 +40,10 @@ def prayerrequest(request,prayer_id):
 				form = forms.Prayer(initial=vals)
 				form.save()
 				return redirect('success/')
-			except Exception:
+			except Exception as e:
 				template = loader.get_template('error.html')
 				context = {
-					'error' : str(Exception)
+					'error' : str(e)
 				}
 		else:
 			context = {		
@@ -68,10 +68,10 @@ def prayer(request,prayer_id):
 				'prayer' : prayer,
 				'form' : form
 			}
-		except Exception:
+		except Exception as e:
 			template = loader.get_template('error.html')
 			context = {
-				'error' : str(Exception)
+				'error' : str(e)
 			}
 	else:
 		context = {
@@ -103,7 +103,7 @@ def pray(request, prayer_id):
 		try:
 			prayer = Prayer.objects.get(pk=prayer_id)
 			form = forms.Pray(request.POST)
-			if form.isvalid():
+			if form.is_valid():
 				#potentially reference other fields in prayer object to populate the rest of the form
 				#increment prayer count
 				count = form.request.POST['prayer_count']
@@ -122,9 +122,9 @@ def pray(request, prayer_id):
 					'error' : '501 Prayer Input Form Error' #501 prayer input form error
 				}
 				template = loader.get_template('error.html')
-		except Exception:
+		except Exception as e:
 			context = {
-				'error' : str(Exception)
+				'error' : str(e)
 			}
 			template = loader.get_template('error.html')
 	else:
