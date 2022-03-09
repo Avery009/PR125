@@ -78,8 +78,7 @@ def valid(dbfield,dbval,**filters):
 				if(val['answer']==dbval):
 					if(val['question']==q):
 						return True
-			return False
-			
+			return False			
 	except Exception:
 		#log(Exception)
 		print(Exception)
@@ -282,17 +281,47 @@ def passwordhelp(request):
 						'form' : form,
 						'new' : True #new user flag
 					}
-			template = loader.get_template('form.html')
-			context = {
-				'form' : form,
-			}
+				else:
+					form = forms.ChangePassword()
+					template = loader.get_template('form.html')
+					context = {
+						'form' : form,
+						'errorC' : True #change password error
+					}
+			except:
+				template = loader.get_template('form.html')
+				context = {
+					'form' : form,
+					'errorC' : False #change password failure
+				}
 		elif request.session['prayUser']: #indicates prior username validate choice
-			val = {'username':str(request.session['prayUser'])}
-			form = forms.ChangePassword(initial=val) #validate that this will work with only one field update given necessity of other password fields 
-			template = loader.get_template('form.html')
-			context = {
-				'form' : form,
-			}
+			e = request.session['prayUser']
+                        form = forms.ChangePassword(request.POST)
+                        try:
+                                newpassword = form.cleaned_data.get('newpassword')
+                                if(form.cleaned_data.get('oldpassword')==form.cleaned_data.get('newpassword')):
+                                        u = User.objects.get(username__exact=e)
+                                        u.set_password(newpassword)
+                                        u.save()
+                                        form = forms.Login()
+                                        template = loader.get_template('form.html')
+                                        context = {
+                                                'form' : form,
+                                                'new' : True #new user flag
+                                        }
+                                else:
+                                        form = forms.ChangePassword()
+                                        template = loader.get_template('form.html')
+                                        context = {
+                                                'form' : form,
+                                                'errorC' : True #change password error
+                                        }
+                        except:
+                                template = loader.get_template('form.html')
+                                context = {
+                                        'form' : form,
+                                        'errorC' : False #change password failure
+                                }
 		else: #indicates going to this URL with no prior choice
 			template = loader.get_template('error.html')
 			context = {
