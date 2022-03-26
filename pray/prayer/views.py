@@ -34,7 +34,7 @@ def prayerrequest(request):
 			try:
 				p = Prayer(prayer_title=pt,prayer_request_date=prd,prayer_description=pd,prayer_count=pc)
 				p.save()
-				return redirect('success/')
+				return redirect('/success/')
 			except Exception as e:
 				template = loader.get_template('error.html')
 				context = {
@@ -80,13 +80,12 @@ def pray(request, prayer_id):
 		try:
 			prayer = Prayer.objects.get(pk=prayer_id)
 			form = forms.Pray()
-			template = loader.get_template('prayerform.html')
+			template = loader.get_template('pray.html')
 			context = {
 				'prayer_id' : prayer_id,
 				'prayer_title' : prayer.prayer_title,
 				'prayer_description' : prayer.prayer_description,
-				'prayer_count' : prayer.prayer_count,
-				'form' : form
+				'prayer_count' : prayer.prayer_count
 			}
 		except Exception:
 			form = forms.Pray()
@@ -94,29 +93,24 @@ def pray(request, prayer_id):
 				'error' : str(Exception)
 			}
 			template = loader.get_template('error.html')
-	elif request.method == 'POST':
+	else:
+		context = {
+			'error' : '501 Invalid Request Protocol' #protocol error
+		}
+		template = loader.get_template('error.html')
+	return HttpResponse(template.render(context,request))
+
+def prays(request, prayer_id, prayer_count):
+	if request.method == 'POST':
 		try:
 			prayer = Prayer.objects.get(pk=prayer_id)
-			form = forms.Pray(request.POST)
-			if form.is_valid():
-				#potentially reference other fields in prayer object to populate the rest of the form
-				#increment prayer count
-				count = form.cleaned_data['prayer_count']
-				count = count + 1
-				form = forms.Prayer()
-				post = form.save(commit=False)
-				post.prayer_id = prayer.prayer_id
-				post.prayer_title = prayer.prayer_title
-				post.prayer_description = prayer.prayer_description
-				post.prayer_request_date = prayer.prayer_request_date
-				post.prayer_count = count
-				post.save()
-				return redirect('success/')
-			else:
-				context = {
-					'error' : '501 Prayer Input Form Error' #501 prayer input form error
-				}
-				template = loader.get_template('error.html')
+			#potentially reference other fields in prayer object to populate the rest of the form
+			#increment prayer count
+			count = prayer_count
+			count = count + 1
+			prayer.prayer_count = count
+			prayer.save()
+			return redirect('/success/')
 		except Exception as e:
 			context = {
 				'error' : str(e)
