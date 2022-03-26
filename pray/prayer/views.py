@@ -57,11 +57,9 @@ def prayer(request,prayer_id):
 	if request.method == 'GET':
 		try:
 			prayer = Prayer.objects.get(pk=prayer_id)
-			form = forms.PrayerView()
-			template = loader.get_template('prayerform.html')
+			template = loader.get_template('prayer.html')
 			context = {
-				'prayer' : prayer,
-				'form' : form
+				'prayer' : prayer
 			}
 		except Exception as e:
 			template = loader.get_template('error.html')
