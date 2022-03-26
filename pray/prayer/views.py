@@ -3,7 +3,7 @@ from django.http import HttpResponse, Http404
 from .models import Prayer
 from .forms import forms
 from django.template import loader
-from datetime import datetime
+import datetime
 
 
 
@@ -27,18 +27,13 @@ def prayerrequest(request):
 	elif request.method == 'POST':
 		form = forms.PrayerRequest(request.POST)
 		if form.is_valid():
-			prayer_request_date = datetime.now()
-			prayer_title = request.POST['prayer_title']
-			prayer_description = request.POST['prayer_description']
-			vals = {
-				'prayer_title' : prayer_title,
-				'prayer_request_date' : prayer_request_date,
-				'prayer_description' : prayer_description,
-				'prayer_count' : '1'
-			}
+			prd = datetime.datetime.now()
+			pt = form.cleaned_data['prayer_title']
+			pd = form.cleaned_data['prayer_description']
+			pc = '1'
 			try:
-				form = forms.Prayer(initial=vals)
-				form.save()
+				p = Prayer(prayer_title=pt,prayer_request_date=prd,prayer_description=pd,prayer_count=pc)
+				p.save()
 				return redirect('success/')
 			except Exception as e:
 				template = loader.get_template('error.html')
@@ -85,7 +80,7 @@ def pray(request, prayer_id):
 		try:
 			prayer = Prayer.objects.get(pk=prayer_id)
 			form = forms.Pray()
-			template = loader.get_template('prayform.html')
+			template = loader.get_template('prayerform.html')
 			context = {
 				'prayer_id' : prayer_id,
 				'prayer_title' : prayer.prayer_title,
@@ -106,7 +101,7 @@ def pray(request, prayer_id):
 			if form.is_valid():
 				#potentially reference other fields in prayer object to populate the rest of the form
 				#increment prayer count
-				count = form.request.POST['prayer_count']
+				count = form.cleaned_data['prayer_count']
 				count = count + 1
 				form = forms.Prayer()
 				post = form.save(commit=False)
